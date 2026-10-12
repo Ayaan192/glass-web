@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>App — Glass</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <link rel="stylesheet" href="assets/glass.css" />
+    <script>
+      (function () {
+        try {
+          var choice = localStorage.getItem("glass-theme");
+          var dark = !choice || choice.replace(/"/g, "") !== "light";
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (error) {}
+      })();
+    </script>
+  </head>
+
+  <body class="glass-canvas">
+    <div data-header></div>
+
+    <main class="wrap wrap--wide page" id="detail" style="padding-top: 3rem"></main>
+
+    <script src="assets/data.js"></script>
+    <script src="assets/glass.js"></script>
+    <script>
+      (function () {
+        var G = window.Glass;
+        var host = document.getElementById("detail");
+        var slug = new URLSearchParams(window.location.search).get("slug");
+        var item = slug ? G.findProduct(slug) : null;
+        var quantity = 1;
+
+        if (!item) {
+          host.style.maxWidth = "40rem";
+          host.innerHTML =
+            '<div class="centred" style="padding-block:8rem">' +
+            '<h1 style="font-size:1.875rem;font-weight:300">That app isn\'t part of the suite.</h1>' +
+            '<p class="muted" style="max-width:24rem;margin:1rem auto 0;font-size:0.875rem;line-height:1.5rem">The link may be out of date.</p>' +
+            '<a class="btn btn--primary" style="margin-top:2rem" href="catalog.html">See the suite</a>' +
+            "</div>";
+          return;
+        }
+
+        document.title = item.name + " — Glass";
+
+        var ceiling = Math.min(G.MAX_SEATS, item.seats);
+        var isFree = item.priceCents === 0;
+
+        function reservations() {
+          var lines = G.cart().lines.filter(function (line) {
+            return line.slug === item.slug;
+          });
+          return lines.length ? lines[0].quantity : 0;
+        }
+
+        function render() {
+          var reserved = reservations();
+
+          var specifications = [
+            ["Status", item.statusLabel],
+            ["Platforms", item.platforms.join(", ")],
+            ["Licence", item.licence],
+            ["Seats left", item.seats + " remaining"],
+          ]
+            .map(function (spec) {
+              return (
+                '<div class="spec">' +
+                '<dt class="spec__label">' + spec[0] + "</dt>" +
+                '<dd class="spec__value">' + spec[1] + "</dd>" +
+                "</div>"
+              );
+            })
+            .join("");
+
+          var highlights = item.highlights
+            .map(function (highlight) {
+              return (
+                '<li class="check">' +
+                '<span class="check__mark">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>' +
+                "</span>" +
+                G.escapeHtml(highlight) +
+                "</li>"
+              );
+            })
+            .join("");
+
+          var stepper = isFree
+            ? ""
+            : '<div class="stepper glass">' +
+              '<button type="button" class="qty__btn" data-qty="-1" aria-label="Reserve one fewer seat"' +
+              (quantity <= 1 ? " disabled" : "") + ">" +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /></svg></button>' +
+              '<span class="qty__value">' + quantity + "</span>" +
+              '<button type="button" class="qty__btn" data-qty="1" aria-label="Reserve one more seat"' +
+              (quantity >= ceiling ? " disabled" : "") + ">" +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="M12 5v14" /></svg></button>' +
+              "</div>";
+
+          var related = G.list()
+            .items.filter(function (app) {
+              return app.slug !== item.slug;
+            })
+            .slice(0, 3)
+            .map(function (app) {
+              return (
+                '<a class="related-card glass glass-rim glass-sheen" href="product.html?slug=' + app.slug + '">' +
+                '<div class="related-card__media">' +
+                '<span class="related-card__glow"></span>' +
+                G.glassObject(app.form, { className: "related-card__object", label: app.name }) +
+                "</div>" +
+                '<div class="related-card__body">' +
+                '<div class="app-card__row">' +
+                '<p class="app-card__name">' + G.escapeHtml(app.name) + "</p>" +
+                '<span class="app-card__price muted">' + G.formatPriceLabel(app.priceCents, app.currency) + "</span>" +
+                "</div>" +
+                '<p class="app-card__platforms">' + app.statusLabel + " · " + app.platforms.join(" · ") + "</p>" +
+                '<span class="related-card__view">View app' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>' +
+                "</span>" +
+                "</div>" +
+                "</a>"
+              );
+            })
+            .join("");
+
+          host.innerHTML =
+            '<nav class="crumbs" aria-label="Breadcrumb">' +
+            '<a class="crumbs__back" href="catalog.html">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>' +
+            "The suite</a>" +
+            '<span class="crumbs__sep">/</span>' +
+            "<span>" + G.escapeHtml(item.name) + "</span>" +
+            "</nav>" +
+
+            '<div class="detail-grid">' +
+            '<div>' +
+            '<div class="detail-media glass glass-rim glass-sheen">' +
+            '<span class="detail-media__glow"></span>' +
+            G.glassObject(item.form, { className: "detail-media__object", label: item.name }) +
+            '<span class="badge detail-media__badge">' + item.statusLabel + "</span>" +
+            '<span class="detail-media__platforms">' + item.platforms.join(" · ") + "</span>" +
+            "</div>" +
+            "</div>" +
+
+            "<div>" +
+            '<h1 class="detail-title">' + G.escapeHtml(item.name) + "</h1>" +
+            '<p class="detail-lede">' + G.escapeHtml(item.tagline) + "</p>" +
+            '<p class="detail-copy">' + G.escapeHtml(item.description) + "</p>" +
+            '<ul class="checks">' + highlights + "</ul>" +
+
+            '<div class="reserve glass glass-rim glass-sheen">' +
+            '<div class="reserve__top">' +
+            "<div>" +
+            '<p class="eyebrow" style="letter-spacing:0.18em">' + item.licence + "</p>" +
+            '<div class="reserve__price-row">' +
+            '<p class="reserve__price">' + G.formatPriceLabel(item.priceCents, item.currency) + "</p>" +
+            (isFree ? '<span class="badge">No charge</span>' : "") +
+            "</div>" +
+            "</div>" +
+            stepper +
+            "</div>" +
+
+            '<button type="button" class="btn btn--primary btn--lg btn--block reserve__btn" ' +
+            'data-add-to-cart="' + item.slug + '" data-add-name="' + G.escapeHtml(item.name) + '" data-add-quantity="' + quantity + '">' +
+            "Reserve early access</button>" +
+
+            '<div class="reserve__note">' +
+            "<span>" +
+            (isFree
+              ? "Free to reserve. Every future build is included."
+              : "One payment for a lifetime licence. Every future build is included.") +
+            "</span>" +
+            (!isFree && quantity > 1
+              ? '<span class="reserve__seats">' + quantity + " seats · " +
+                G.formatPrice(item.priceCents * quantity, item.currency) + "</span>"
+              : "") +
+            (reserved > 0
+              ? '<span class="reserve__seats">' + reserved + " " + G.pluralize(reserved, "seat") + " already in your cart</span>"
+              : "") +
+            "</div>" +
+            "</div>" +
+
+            '<dl class="specs">' + specifications + "</dl>" +
+
+            '<div class="now">' +
+            '<p class="now__label"><span class="dot"></span>Where it is right now</p>' +
+            '<p class="now__copy">' + G.escapeHtml(item.releaseNote) + "</p>" +
+            '<p class="now__req">Runs on ' + G.escapeHtml(item.requirements) + ".</p>" +
+            "</div>" +
+            "</div>" +
+            "</div>" +
+
+            '<section class="related">' +
+            '<div class="related__head">' +
+            "<div>" +
+            '<p class="eyebrow">The rest of the suite</p>' +
+            '<h2 class="related__title">Also in development.</h2>' +
+            "</div>" +
+            '<a class="related__all" href="catalog.html">See all four' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>' +
+            "</a>" +
+            "</div>" +
+            '<div class="related__grid">' + related + "</div>" +
+            "</section>";
+        }
+
+        host.addEventListener("click", function (event) {
+          var step = event.target.closest("[data-qty]");
+          if (!step) return;
+          quantity = Math.max(1, Math.min(ceiling, quantity + Number(step.getAttribute("data-qty"))));
+          render();
+        });
+
+        window.glassOnCartChange = render;
+        render();
+      })();
+    </script>
+  </body>
+</html>

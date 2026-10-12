@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The suite — Glass</title>
+    <meta
+      name="description"
+      content="Glass Tweaks, Glass Startup, Glass VM and Glass Client. Four desktop apps in development, early access open."
+    />
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <link rel="stylesheet" href="assets/glass.css" />
+    <script>
+      (function () {
+        try {
+          var choice = localStorage.getItem("glass-theme");
+          var dark = !choice || choice.replace(/"/g, "") !== "light";
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (error) {}
+      })();
+    </script>
+  </head>
+
+  <body class="glass-canvas">
+    <div data-header></div>
+
+    <main class="wrap wrap--wide page">
+      <header class="page-head">
+        <p class="eyebrow">The suite</p>
+        <h1 class="page-title">Four apps. All in development.</h1>
+        <p class="page-lede">
+          Glass Tweaks, Glass Startup, Glass VM and Glass Client are each being
+          built in the open. Reserve a seat and you get every build from now on —
+          release day included.
+        </p>
+      </header>
+
+      <!-- Search, filters and sort — one surface, so the shelf below stays calm. -->
+      <div class="toolbar glass glass-rim">
+        <div class="search">
+          <span class="search__icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          </span>
+          <input
+            id="search"
+            class="search__input"
+            type="search"
+            placeholder="Search tweaks, boot, virtual machines…"
+            aria-label="Search the suite"
+            autocomplete="off"
+          />
+          <button type="button" class="search__clear" id="search-clear" aria-label="Clear search" hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          </button>
+        </div>
+
+        <div class="filters" id="filters"></div>
+
+        <select class="select sort" id="sort" aria-label="Sort the suite"></select>
+      </div>
+
+      <div id="results"></div>
+    </main>
+
+    <script src="assets/data.js"></script>
+    <script src="assets/glass.js"></script>
+    <script>
+      (function () {
+        var G = window.Glass;
+        var state = { q: "", platform: "All", sort: "default" };
+
+        var search = document.getElementById("search");
+        var clear = document.getElementById("search-clear");
+        var filters = document.getElementById("filters");
+        var sort = document.getElementById("sort");
+        var results = document.getElementById("results");
+
+        sort.innerHTML = Object.keys(G.SORT_LABELS)
+          .map(function (key) {
+            return '<option value="' + key + '">' + G.SORT_LABELS[key] + "</option>";
+          })
+          .join("");
+
+        function renderFilters(platforms) {
+          filters.innerHTML = platforms
+            .map(function (option) {
+              return (
+                '<button type="button" class="chip' +
+                (state.platform === option ? " is-on" : "") +
+                '" data-platform="' + option + '">' + option + "</button>"
+              );
+            })
+            .join("");
+        }
+
+        function card(item) {
+          var ceiling = Math.min(G.MAX_SEATS, item.seats);
+          return (
+            '<article class="app-card app-card--lift glass glass-rim glass-sheen">' +
+            '<a class="app-card__media app-card__media--ratio" href="product.html?slug=' + item.slug + '" aria-label="' + G.escapeHtml(item.name) + '">' +
+            '<span class="app-card__glow"></span>' +
+            G.glassObject(item.form, { className: "app-card__object", label: item.name }) +
+            '<span class="badge app-card__badge">' + item.statusLabel + "</span>" +
+            '<span class="app-card__index">' + String(item.sortOrder).padStart(2, "0") + "</span>" +
+            "</a>" +
+            '<div class="app-card__body app-card__body--tight">' +
+            '<h2 class="app-card__name"><a href="product.html?slug=' + item.slug + '">' + G.escapeHtml(item.name) + "</a></h2>" +
+            '<p class="app-card__platforms">' + item.platforms.join(" · ") + "</p>" +
+            '<p class="app-card__tagline app-card__tagline--sm">' + G.escapeHtml(item.tagline) + "</p>" +
+            '<div class="app-card__foot">' +
+            "<div>" +
+            '<p class="app-card__licence-label">Licence</p>' +
+            '<p class="app-card__licence">' + G.formatPriceLabel(item.priceCents, item.currency) + "</p>" +
+            "</div>" +
+            '<button type="button" class="btn btn--outline btn--sm" ' +
+            'data-add-to-cart="' + item.slug + '" data-add-name="' + G.escapeHtml(item.name) + '">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="M12 5v14" /></svg>' +
+            "Reserve</button>" +
+            "</div>" +
+            "</div>" +
+            "</article>"
+          );
+        }
+
+        function render() {
+          var query = G.list(state);
+          var searching = state.q.trim().length > 0;
+          var filtered = searching || state.platform !== "All";
+
+          renderFilters(query.platforms);
+          clear.hidden = !searching;
+
+          if (!query.items.length) {
+            results.innerHTML =
+              '<div class="card glass glass-rim glass-sheen centred" style="margin-top:2.5rem;padding:6rem 2rem;border-radius:1.75rem">' +
+              '<p style="font-size:1rem">Nothing matches' +
+              (searching ? " “" + G.escapeHtml(state.q.trim()) + "”" : " that filter") +
+              ".</p>" +
+              '<p class="muted" style="max-width:24rem;margin:0.75rem auto 0;font-size:0.875rem;line-height:1.5rem">' +
+              "Try a platform like macOS, or what you want to do — boot, snapshots, appearance." +
+              "</p>" +
+              '<button type="button" class="btn btn--outline" style="margin-top:1.5rem" data-clear-filters>Show everything</button>' +
+              "</div>";
+            return;
+          }
+
+          results.innerHTML =
+            '<div class="result-bar">' +
+            '<p class="result-count">' + query.items.length + " " + G.pluralize(query.items.length, "app") +
+            (state.platform !== "All" ? " on " + G.escapeHtml(state.platform) : "") + "</p>" +
+            (filtered
+              ? '<button type="button" class="clear-filters" data-clear-filters>Clear filters</button>'
+              : "") +
+            "</div>" +
+            '<div class="shelf">' + query.items.map(card).join("") + "</div>";
+        }
+
+        search.addEventListener("input", function () {
+          state.q = search.value;
+          render();
+        });
+
+        filters.addEventListener("click", function (event) {
+          var chip = event.target.closest("[data-platform]");
+          if (!chip) return;
+          state.platform = chip.getAttribute("data-platform");
+          render();
+        });
+
+        sort.addEventListener("change", function () {
+          state.sort = sort.value;
+          render();
+        });
+
+        results.addEventListener("click", function (event) {
+          if (!event.target.closest("[data-clear-filters]")) return;
+          state.q = "";
+          state.platform = "All";
+          search.value = "";
+          render();
+        });
+
+        window.glassOnCartChange = render;
+        render();
+      })();
+    </script>
+  </body>
+</html>

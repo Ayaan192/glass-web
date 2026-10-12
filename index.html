@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Glass — Software you can see through</title>
+    <meta
+      name="description"
+      content="Glass is an independent software studio building four desktop apps: Glass Tweaks, Glass Startup, Glass VM and Glass Client for Minecraft. All in development, early access open."
+    />
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <link rel="manifest" href="assets/manifest.webmanifest" />
+    <link rel="stylesheet" href="assets/glass.css" />
+    <script>
+      // Runs before first paint so the theme never flashes. Dark is the default;
+      // a stored choice wins.
+      (function () {
+        try {
+          var choice = localStorage.getItem("glass-theme");
+          var dark = !choice || choice.replace(/"/g, "") !== "light";
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (error) {
+          /* storage unavailable — keep the default */
+        }
+      })();
+    </script>
+  </head>
+
+  <body class="glass-canvas">
+    <div data-header></div>
+
+    <main class="wrap">
+      <!-- Brand intro -->
+      <section class="hero">
+        <span class="hero__badge glass glass-rim reveal">
+          <span class="dot"></span>
+          Independent software studio
+        </span>
+
+        <h1 class="hero__title reveal" style="transition-delay: 60ms">
+          Software you can
+          <span>see through.</span>
+        </h1>
+
+        <p class="hero__lede reveal" style="transition-delay: 140ms">
+          Glass builds a small suite of desktop tools: Glass Tweaks, Glass
+          Startup, Glass VM and Glass Client for Minecraft. All four are in
+          development, and early access is open — reserve now and every build is
+          yours.
+        </p>
+
+        <div class="hero__actions reveal" style="transition-delay: 220ms">
+          <a class="btn btn--primary btn--lg" href="catalog.html">
+            See the suite
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+          </a>
+          <a class="btn btn--ghost btn--lg btn--glass glass glass-rim" href="#craft">
+            How we build
+          </a>
+        </div>
+
+        <dl class="promises glass glass-rim glass-sheen reveal" style="transition-delay: 320ms">
+          <div class="promise">
+            <dt class="promise__value">4</dt>
+            <dd class="promise__label">Apps in development</dd>
+          </div>
+          <div class="promise">
+            <dt class="promise__value">Free</dt>
+            <dd class="promise__label">Glass Startup, no charge</dd>
+          </div>
+          <div class="promise">
+            <dt class="promise__value">Lifetime</dt>
+            <dd class="promise__label">Licence, no subscription</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- The suite -->
+      <section id="suite" class="section">
+        <div class="section__head">
+          <p class="eyebrow">The suite</p>
+          <h2 class="section__title">Four apps, each still being built.</h2>
+          <p class="section__lede">
+            Every app does one narrow job and says what it is doing. Reserve a
+            seat and you are on the inside of all four.
+          </p>
+        </div>
+
+        <div class="suite-grid" id="suite-grid" aria-live="polite"></div>
+
+        <div class="centre-cta">
+          <a class="btn btn--outline" href="catalog.html">
+            Compare all four
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+          </a>
+        </div>
+      </section>
+
+      <!-- How we build -->
+      <section id="craft" class="section">
+        <div class="section__head">
+          <p class="eyebrow">How we build</p>
+          <h2 class="section__title">Narrow, honest, unhurried.</h2>
+        </div>
+
+        <div class="steps glass glass-rim glass-sheen reveal">
+          <div class="step">
+            <span class="step__index">01</span>
+            <div class="step__body">
+              <h3 class="step__title">One job per app</h3>
+              <p class="step__copy">
+                Tweaks adjusts surfaces. Startup explains your boot. VM runs
+                other systems. We do not fold three tools into one window.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step__index">02</span>
+            <div class="step__body">
+              <h3 class="step__title">Show the truth</h3>
+              <p class="step__copy">
+                Every number we display is measured, never estimated. If an app
+                cannot tell you why it is doing something, it does not ship.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step__index">03</span>
+            <div class="step__body">
+              <h3 class="step__title">Ship when it is ready</h3>
+              <p class="step__copy">
+                All four apps are in development. You get every build from your
+                reservation onward, and we say plainly what is still missing.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Contact -->
+      <section id="contact" class="section" style="padding-bottom: 7rem">
+        <div class="cta-panel glass glass-rim glass-sheen reveal">
+          <h2 class="cta-panel__title">Get in while it is being built.</h2>
+          <p class="cta-panel__lede">
+            Reserve early access to any of the four apps, follow the builds as
+            they land, and pay once for a lifetime licence.
+          </p>
+          <div class="cta-panel__actions">
+            <a class="btn btn--primary btn--lg" href="catalog.html">
+              See the suite
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+            </a>
+            <a class="btn btn--ghost btn--lg" href="mailto:hello@glass.app">
+              hello@glass.app
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap site-footer__inner">
+        <span>Glass — Independent software studio</span>
+        <span>Four apps in development · <span data-year></span></span>
+        <a href="glass-source.zip" download>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /><path d="M12 15V3" /></svg>
+          Download source (.zip)
+        </a>
+      </div>
+    </footer>
+
+    <script src="assets/data.js"></script>
+    <script src="assets/glass.js"></script>
+    <script>
+      (function () {
+        var G = window.Glass;
+
+        document.querySelectorAll("[data-year]").forEach(function (node) {
+          node.textContent = new Date().getFullYear();
+        });
+
+        document.getElementById("suite-grid").innerHTML = G.list().items
+          .map(function (app) {
+            return (
+              '<article class="app-card glass glass-rim glass-sheen reveal">' +
+              '<a class="app-card__media" href="product.html?slug=' + app.slug + '">' +
+              '<span class="app-card__glow"></span>' +
+              G.glassObject(app.form, { className: "app-card__object", label: app.name }) +
+              '<span class="badge app-card__badge">' + app.statusLabel + "</span>" +
+              "</a>" +
+              '<div class="app-card__body">' +
+              '<div class="app-card__row">' +
+              '<h3 class="app-card__name"><a href="product.html?slug=' + app.slug + '">' + app.name + "</a></h3>" +
+              '<span class="app-card__price">' + G.formatPriceLabel(app.priceCents, app.currency) + "</span>" +
+              "</div>" +
+              '<p class="app-card__tagline">' + app.tagline + "</p>" +
+              "</div>" +
+              "</article>"
+            );
+          })
+          .join("");
+
+        G.revealAll(document);
+      })();
+    </script>
+  </body>
+</html>

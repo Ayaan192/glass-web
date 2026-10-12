@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Not found — Glass</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <link rel="stylesheet" href="assets/glass.css" />
+    <script>
+      (function () {
+        try {
+          var choice = localStorage.getItem("glass-theme");
+          var dark = !choice || choice.replace(/"/g, "") !== "light";
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (error) {}
+      })();
+    </script>
+  </head>
+
+  <body class="glass-canvas">
+    <div data-header></div>
+
+    <main class="wrap wrap--narrow" style="padding-block: 6rem 7rem">
+      <div class="confirm glass glass-rim glass-sheen">
+        <p class="eyebrow">404</p>
+        <h1 class="confirm__title" style="margin-top:1rem">That page is not here.</h1>
+        <p class="confirm__lede">
+          Four apps, four pages, one drawer — the link you followed is not part
+          of the suite. Everything else is a tap away.
+        </p>
+        <div class="confirm__actions">
+          <a class="btn btn--primary" href="index.html">Back to the studio</a>
+          <a class="btn btn--ghost" href="catalog.html">See the suite</a>
+        </div>
+      </div>
+    </main>
+
+    <script src="assets/data.js"></script>
+    <script src="assets/glass.js"></script>
+  </body>
+</html>

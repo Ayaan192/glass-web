@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in — Glass</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <link rel="stylesheet" href="assets/glass.css" />
+    <script>
+      (function () {
+        try {
+          var choice = localStorage.getItem("glass-theme");
+          var dark = !choice || choice.replace(/"/g, "") !== "light";
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (error) {}
+      })();
+    </script>
+  </head>
+
+  <body class="glass-canvas auth-page">
+    <main class="wrap wrap--narrow auth-main">
+      <a class="auth-brand" href="index.html">
+        <span class="brand__mark">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></svg>
+        </span>
+        <span class="brand__word">Glass</span>
+      </a>
+
+      <section class="auth-card glass glass-rim glass-sheen" id="auth" aria-live="polite"></section>
+
+      <p class="auth-note">Glass — Independent software studio</p>
+    </main>
+
+    <script src="assets/data.js"></script>
+    <script src="assets/glass.js"></script>
+    <script>
+      (function () {
+        var G = window.Glass;
+        var host = document.getElementById("auth");
+        var params = new URLSearchParams(window.location.search);
+
+        /* What the server can do, read from /api/config. Until that answers —
+           or if it never does, because the page was opened from a folder —
+           "off" means codes are handled in the browser and we say so. */
+        var delivery = { mode: "off", provider: null, resendCooldownSeconds: 45 };
+        var cooldownTimer = null;
+
+        function destination() {
+          var returnTo = params.get("returnTo");
+          if (returnTo && returnTo.indexOf("://") === -1 && returnTo.indexOf("//") !== 0) {
+            return returnTo;
+          }
+          return "account.html";
+        }
+
+        function spaced(code) {
+          return String(code).replace(/(\d{3})(\d{3})/, "$1 $2");
+        }
+
+        function callApi(route, payload) {
+          return fetch(route, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload || {}),
+          })
+            .then(function (response) {
+              return response
+                .json()
+                .catch(function () {
+                  return {};
+                })
+                .then(function (data) {
+                  return { status: response.status, data: data };
+                });
+            });
+        }
+
+        function readConfig() {
+          return new Promise(function (resolve) {
+            var done = false;
+            var finish = function (value) {
+              if (done) return;
+              done = true;
+              resolve(value);
+            };
+
+            // A page opened straight from disk, or a server without the API,
+            // must not leave the visitor staring at a blank card.
+            var timer = setTimeout(function () {
+              finish(null);
+            }, 4000);
+
+            fetch("/api/config", { headers: { Accept: "application/json" } })
+              .then(function (response) {
+                return response.ok ? response.json() : null;
+              })
+              .then(function (data) {
+                clearTimeout(timer);
+                finish(data);
+              })
+              .catch(function () {
+                clearTimeout(timer);
+                finish(null);
+              });
+          });
+        }
+
+        /* ---------------- Step one: the address ---------------- */
+
+        function emailStep(error, notice) {
+          var foot =
+            delivery.mode === "live"
+              ? "No password. We email a six-digit code."
+              : delivery.mode === "debug"
+                ? "This server has no mail provider configured, so the code is shown on the next screen."
+                : "Opened without the mail server, so codes stay in this browser. Start it with node server.js to email them.";
+
+          host.innerHTML =
+            '<p class="eyebrow">Early access</p>' +
+            '<h1 class="auth-title">Sign in or create an account.</h1>' +
+            '<p class="auth-lede">Four apps in development. One account holds your seats, licences and order history.</p>' +
+            '<form class="auth-form" id="email-form" novalidate>' +
+            '<div class="field">' +
+            '<label class="label" for="email">Email</label>' +
+            '<input class="input" id="email" name="email" type="email" placeholder="name@example.com" autocomplete="email" required />' +
+            "</div>" +
+            '<button class="btn btn--primary btn--lg btn--block" type="submit" id="email-submit">' +
+            G.icon("arrow-right", 16) + "Continue with email</button>" +
+            '<p class="auth-foot">' + foot + "</p>" +
+            (notice ? '<p class="auth-foot">' + G.escapeHtml(notice) + "</p>" : "") +
+            (error
+              ? '<p class="auth-foot auth-foot--error">' + G.escapeHtml(error) + "</p>"
+              : "") +
+            "</form>" +
+            '<div class="seam"><span>or</span></div>' +
+            '<button class="btn btn--outline btn--block" type="button" id="guest" style="margin-top:1.5rem">' +
+            G.icon("user-x", 16) + "Continue as guest</button>" +
+            '<p class="auth-foot">A guest account lives in this browser only.</p>';
+
+          var form = document.getElementById("email-form");
+          var submit = document.getElementById("email-submit");
+
+          form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            var email = document.getElementById("email").value.trim();
+            if (!email) {
+              emailStep("We need an email address to hold the seats.");
+              return;
+            }
+
+            if (delivery.mode === "off") {
+              codeStep(email, { mode: "off" });
+              return;
+            }
+
+            submit.disabled = true;
+            submit.innerHTML = '<span class="btn__spin"></span>Sending the code…';
+
+            callApi("/api/otp/request", { email: email }).then(function (result) {
+              var data = result.data || {};
+
+              if (result.status === 200) {
+                codeStep(email, {
+                  mode: data.mode,
+                  debugCode: data.debugCode,
+                  resendAfterSeconds: data.resendAfterSeconds,
+                });
+                return;
+              }
+
+              // A cooldown means a code is already on its way — let them type it.
+              if (data.reason === "cooldown" || data.reason === "rate_limited") {
+                if (data.reason === "cooldown") {
+                  codeStep(email, {
+                    mode: delivery.mode,
+                    notice: data.message,
+                    resendAfterSeconds: data.retryAfterSeconds,
+                  });
+                  return;
+                }
+              }
+
+              emailStep(data.message || "That code could not be sent just now.");
+            });
+          });
+
+          document.getElementById("guest").addEventListener("click", function () {
+            G.signInGuest();
+            window.location.href = destination();
+          });
+
+          var field = document.getElementById("email");
+          field.focus();
+        }
+
+        /* ---------------- Step two: the code ---------------- */
+
+        function codeStep(email, options) {
+          var settings = options || {};
+          var mode = settings.mode || delivery.mode;
+          var ttl = 15;
+
+          var lede =
+            mode === "debug"
+              ? "Mail delivery is switched off on this server, so here is your code for " +
+                G.escapeHtml(email) + "."
+              : "We sent a six-digit code to " + G.escapeHtml(email) +
+                ". It expires in " + ttl + " minutes.";
+
+          var hint =
+            mode === "live"
+              ? "Nothing yet? Look in the spam folder, or send another code below."
+              : mode === "debug"
+                ? "Set RESEND_API_KEY or BREVO_API_KEY in .env to have this emailed for real."
+                : "Opened without the mail server, so any six digits sign you in.";
+
+          host.innerHTML =
+            '<p class="eyebrow">' +
+            (mode === "live" ? "Check your email" : "Your code") +
+            "</p>" +
+            '<h1 class="auth-title">Enter your code.</h1>' +
+            '<p class="auth-lede">' + lede + "</p>" +
+            (settings.notice
+              ? '<p class="auth-foot" style="margin-top:0.75rem">' + G.escapeHtml(settings.notice) + "</p>"
+              : "") +
+            (settings.debugCode
+              ? '<div class="dev-code"><span class="dev-code__label">Development code</span>' +
+                "<strong>" + spaced(settings.debugCode) + "</strong></div>"
+              : "") +
+            '<form class="auth-form" id="code-form" novalidate>' +
+            '<div class="otp">' +
+            [0, 1, 2, 3, 4, 5]
+              .map(function (index) {
+                return '<input class="otp__input" inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="Digit ' +
+                  (index + 1) + ' of 6" data-otp="' + index + '" />';
+              })
+              .join("") +
+            "</div>" +
+            '<p class="auth-foot auth-foot--error" id="code-error" hidden></p>' +
+            '<button class="btn btn--primary btn--lg btn--block" type="submit" id="verify">' +
+            G.icon("arrow-right", 16) + "Verify code</button>" +
+            '<p class="auth-foot" id="code-hint">' + hint + "</p>" +
+            (mode === "off"
+              ? ""
+              : '<button class="btn btn--ghost btn--block" type="button" id="resend">Send a new code</button>') +
+            '<button class="btn btn--ghost btn--block" type="button" id="back">Use a different email</button>' +
+            "</form>";
+
+          var inputs = Array.prototype.slice.call(host.querySelectorAll("[data-otp]"));
+          var verify = document.getElementById("verify");
+          var error = document.getElementById("code-error");
+          var resend = document.getElementById("resend");
+
+          function code() {
+            return inputs
+              .map(function (input) {
+                return input.value;
+              })
+              .join("");
+          }
+
+          function update() {
+            verify.disabled = code().length !== 6;
+          }
+
+          function showError(message) {
+            error.textContent = message;
+            error.hidden = false;
+          }
+
+          function clearError() {
+            error.hidden = true;
+          }
+
+          function fill(value) {
+            var digits = String(value).replace(/[^0-9]/g, "").slice(0, 6).split("");
+            inputs.forEach(function (input, index) {
+              input.value = digits[index] || "";
+            });
+            update();
+            if (digits.length) inputs[Math.min(digits.length, 5)].focus();
+          }
+
+          inputs.forEach(function (input, index) {
+            input.addEventListener("input", function () {
+              input.value = input.value.replace(/[^0-9]/g, "").slice(0, 1);
+              if (input.value && index < inputs.length - 1) inputs[index + 1].focus();
+              clearError();
+              update();
+            });
+            input.addEventListener("keydown", function (event) {
+              if (event.key === "Backspace" && !input.value && index > 0) {
+                inputs[index - 1].focus();
+              }
+              if (event.key === "ArrowLeft" && index > 0) inputs[index - 1].focus();
+              if (event.key === "ArrowRight" && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+              }
+            });
+            input.addEventListener("paste", function (event) {
+              var text = (event.clipboardData || window.clipboardData).getData("text");
+              if (!/\d/.test(text || "")) return;
+              event.preventDefault();
+              fill(text.trim());
+            });
+          });
+
+          inputs[0].focus();
+          update();
+
+          // Resend, with the wait the server actually enforces.
+          function startCooldown(seconds) {
+            if (!resend || !seconds) return;
+            var remaining = Math.ceil(seconds);
+            window.clearInterval(cooldownTimer);
+
+            function tick() {
+              if (remaining <= 0) {
+                window.clearInterval(cooldownTimer);
+                resend.disabled = false;
+                resend.textContent = "Send a new code";
+                return;
+              }
+              resend.disabled = true;
+              resend.textContent =
+                "Send a new code in 0:" + String(Math.min(remaining, 59)).padStart(2, "0");
+              remaining -= 1;
+            }
+
+            tick();
+            cooldownTimer = window.setInterval(tick, 1000);
+          }
+
+          startCooldown(settings.resendAfterSeconds);
+
+          if (resend) {
+            resend.addEventListener("click", function () {
+              resend.disabled = true;
+              resend.textContent = "Sending…";
+              callApi("/api/otp/request", { email: email }).then(function (result) {
+                var data = result.data || {};
+                if (result.status === 200) {
+                  clearError();
+                  fill("");
+                  if (data.debugCode) {
+                    var panel = host.querySelector(".dev-code strong");
+                    if (panel) panel.textContent = spaced(data.debugCode);
+                  }
+                  G.toast("A new code is on its way to " + email + ".");
+                  startCooldown(data.resendAfterSeconds);
+                  return;
+                }
+                showError(data.message || "That code could not be sent just now.");
+                startCooldown(data.retryAfterSeconds || 30);
+              });
+            });
+          }
+
+          document.getElementById("back").addEventListener("click", function () {
+            window.clearInterval(cooldownTimer);
+            emailStep(null);
+          });
+
+          document.getElementById("code-form").addEventListener("submit", function (event) {
+            event.preventDefault();
+            if (code().length !== 6) return;
+            clearError();
+
+            if (mode === "off") {
+              if (code() === "000000") {
+                codeStep(email, { mode: "off", notice: "Try a different six digits." });
+                return;
+              }
+              G.signInEmail(email);
+              window.location.href = destination();
+              return;
+            }
+
+            verify.disabled = true;
+            verify.innerHTML = '<span class="btn__spin"></span>Verifying…';
+
+            callApi("/api/otp/verify", { email: email, code: code() }).then(function (result) {
+              var data = result.data || {};
+
+              if (result.status === 200 && data.account) {
+                G.store.set("glass-session", data.account);
+                window.clearInterval(cooldownTimer);
+                G.toast("Signed in as " + email + ".");
+                window.location.href = destination();
+                return;
+              }
+
+              verify.disabled = false;
+              verify.innerHTML = "Verify code";
+              fill("");
+              inputs[0].focus();
+              showError(data.message || "That code is not right. Check the email and try again.");
+
+              if (data.reason === "too_many_attempts" || data.reason === "expired" || data.reason === "no_code") {
+                startCooldown(0);
+                if (resend) {
+                  resend.disabled = false;
+                  resend.textContent = "Send a new code";
+                }
+              }
+            });
+          });
+        }
+
+        /* ---------------- Boot ---------------- */
+
+        readConfig().then(function (config) {
+          if (config && config.delivery) {
+            delivery = config.delivery;
+            if (config.policy && config.policy.resendCooldownSeconds) {
+              delivery.resendCooldownSeconds = config.policy.resendCooldownSeconds;
+            }
+          }
+          emailStep(null);
+        });
+      })();
+    </script>
+  </body>
+</html>

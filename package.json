@@ -1,0 +1,13 @@
+{
+  "name": "glass-site-plain",
+  "private": true,
+  "version": "1.0.0",
+  "description": "The Glass studio site in plain HTML, CSS and JS, with a zero-dependency sign-in code server.",
+  "//": "The React site above this folder sets type: module; the plain site is classic scripts, so the flag is pinned here.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node server.js --check",
+    "send-test": "node server.js --send-test"
+  }
+}

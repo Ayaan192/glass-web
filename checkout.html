@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Checkout — Glass</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <link rel="stylesheet" href="assets/glass.css" />
+    <script>
+      (function () {
+        try {
+          var choice = localStorage.getItem("glass-theme");
+          var dark = !choice || choice.replace(/"/g, "") !== "light";
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (error) {}
+      })();
+    </script>
+  </head>
+
+  <body class="glass-canvas">
+    <div data-header></div>
+
+    <main class="wrap wrap--wide page">
+      <p class="eyebrow">Checkout</p>
+      <h1 class="page-title">Reserve your seats.</h1>
+
+      <div id="checkout"></div>
+    </main>
+
+    <script src="assets/data.js"></script>
+    <script src="assets/glass.js"></script>
+    <script>
+      (function () {
+        var G = window.Glass;
+        var host = document.getElementById("checkout");
+        var account = G.session();
+
+        function render() {
+          var state = G.cart();
+
+          if (!account) {
+            host.innerHTML =
+              '<div class="card glass glass-rim centred" style="margin-top:2.5rem;padding:5rem 2rem">' +
+              '<h2 style="font-size:1.25rem;font-weight:300">Sign in to check out</h2>' +
+              '<p class="muted" style="max-width:24rem;margin:0.75rem auto 0;font-size:0.875rem;line-height:1.5rem">' +
+              "Your licence is tied to your account, so you'll need to sign in before we can record the reservation.</p>" +
+              '<a class="btn btn--primary" style="margin-top:1.75rem" href="signin.html?returnTo=checkout.html">Sign in</a>' +
+              "</div>";
+            return;
+          }
+
+          if (!state.lines.length) {
+            host.innerHTML =
+              '<div class="card glass glass-rim centred" style="margin-top:2.5rem;padding:5rem 2rem">' +
+              '<h2 style="font-size:1.25rem;font-weight:300">Your cart is empty</h2>' +
+              '<p class="muted" style="max-width:24rem;margin:0.75rem auto 0;font-size:0.875rem;line-height:1.5rem">' +
+              "Reserve a seat on one of the apps and it will appear here.</p>" +
+              '<a class="btn btn--primary" style="margin-top:1.75rem" href="catalog.html">See the suite</a>' +
+              "</div>";
+            return;
+          }
+
+          var summaryLines = state.lines
+            .map(function (line) {
+              return (
+                '<li class="line">' +
+                '<div class="line__thumb line__thumb--sm">' +
+                G.glassObject(line.form, { label: line.name }) +
+                "</div>" +
+                '<div class="line__body">' +
+                '<p class="line__name">' + G.escapeHtml(line.name) + "</p>" +
+                '<p class="line__meta">' + line.quantity + " " +
+                G.pluralize(line.quantity, "seat") + " · " + line.statusLabel + "</p>" +
+                "</div>" +
+                '<p class="line__total">' + G.formatPriceLabel(line.lineTotalCents, state.currency) + "</p>" +
+                "</li>"
+              );
+            })
+            .join("");
+
+          host.innerHTML =
+            '<div class="checkout-grid">' +
+            '<form class="stack" style="gap:1.75rem" id="checkout-form" novalidate>' +
+            '<div class="panel glass glass-rim glass-sheen card-pad">' +
+            '<h2 class="panel__title">Licence details</h2>' +
+            '<p class="panel__hint">Nothing ships, so there is no address to collect — the licence is issued to the email on your account.</p>' +
+            '<div class="form-stack">' +
+            '<div class="field">' +
+            '<label class="label" for="customerName">Full name</label>' +
+            '<input class="input" id="customerName" name="customerName" type="text" placeholder="Your name" autocomplete="name" ' +
+            'value="' + G.escapeHtml(account.name || "") + '" required />' +
+            "</div>" +
+            '<div class="field">' +
+            '<label class="label" for="company">Company <span class="label__hint">(optional)</span></label>' +
+            '<input class="input" id="company" name="company" type="text" placeholder="For a team licence" autocomplete="organization" />' +
+            "</div>" +
+            '<div class="field">' +
+            '<label class="label" for="note">Note <span class="label__hint">(optional)</span></label>' +
+            '<input class="input" id="note" name="note" type="text" placeholder="Anything we should know" />' +
+            "</div>" +
+            "</div>" +
+            "</div>" +
+
+            '<div class="notice glass glass-rim">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>' +
+            '<div><p style="color:var(--foreground)">Payments open with the first release.</p>' +
+            '<p style="margin-top:0.25rem">This build keeps the shop in your browser. Reserving records a pending order in your account and nothing is charged.</p></div>' +
+            "</div>" +
+
+            '<p class="notice notice--error" id="checkout-error" hidden></p>' +
+
+            '<button class="btn btn--primary btn--lg btn--block" type="submit">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>' +
+            (state.totalCents === 0
+              ? "Reserve your seats"
+              : "Reserve · " + G.formatPrice(state.totalCents, state.currency)) +
+            "</button>" +
+
+            '<p class="pay-note">Card details are never collected in this build.</p>' +
+            "</form>" +
+
+            '<aside class="summary glass glass-rim glass-sheen">' +
+            '<h2 class="panel__title">Order summary</h2>' +
+            '<ul class="summary__lines">' + summaryLines + "</ul>" +
+            '<div class="summary__total"><span>Total</span>' +
+            '<span class="tabular">' + G.formatPriceLabel(state.totalCents, state.currency) + "</span></div>" +
+            '<p class="summary__note">One payment for a lifetime licence on each app. No subscription, no renewal, and every future build is included — including the release that ends the in-development phase.</p>' +
+            "</aside>" +
+            "</div>";
+
+          document.getElementById("checkout-form").addEventListener("submit", function (event) {
+            event.preventDefault();
+            var name = document.getElementById("customerName").value.trim();
+            var error = document.getElementById("checkout-error");
+
+            if (!name) {
+              error.textContent = "We need a name to put on the licence.";
+              error.hidden = false;
+              return;
+            }
+
+            var order = G.placeOrder({
+              customerName: name,
+              company: document.getElementById("company").value.trim(),
+              note: document.getElementById("note").value.trim(),
+            });
+
+            if (order.customerName && !account.name) {
+              G.updateName(order.customerName);
+            }
+
+            window.location.href = "order.html?id=" + order.id;
+          });
+        }
+
+        window.glassOnCartChange = render;
+        render();
+      })();
+    </script>
+  </body>
+</html>

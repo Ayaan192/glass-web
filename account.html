@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your account — Glass</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <link rel="stylesheet" href="assets/glass.css" />
+    <script>
+      (function () {
+        try {
+          var choice = localStorage.getItem("glass-theme");
+          var dark = !choice || choice.replace(/"/g, "") !== "light";
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (error) {}
+      })();
+    </script>
+  </head>
+
+  <body class="glass-canvas">
+    <div data-header></div>
+
+    <main class="wrap page" id="account"></main>
+
+    <script src="assets/data.js"></script>
+    <script src="assets/glass.js"></script>
+    <script>
+      (function () {
+        var G = window.Glass;
+        var host = document.getElementById("account");
+        var account = G.session();
+
+        if (!account) {
+          host.innerHTML =
+            '<div class="card glass glass-rim centred" style="margin-top:3rem;padding:5rem 2rem">' +
+            '<div class="empty__icon" style="margin-inline:auto">' +
+            G.icon("bag", 20, 1.25) +
+            "</div>" +
+            '<h2 style="margin-top:1.5rem;font-size:1.25rem;font-weight:300">Sign in to see your account</h2>' +
+            '<p class="muted" style="max-width:24rem;margin:0.75rem auto 0;font-size:0.875rem;line-height:1.5rem">' +
+            "Seats, licences and order history live on your account.</p>" +
+            '<a class="btn btn--primary" style="margin-top:1.75rem" href="signin.html?returnTo=account.html">Sign in</a>' +
+            "</div>";
+          return;
+        }
+
+        function initials() {
+          var source = (account.name || account.email || "G").trim();
+          return G.escapeHtml(source.charAt(0).toUpperCase() || "G");
+        }
+
+        function render() {
+          var state = G.cart();
+          var orders = G.orders();
+
+          var licensedSeats = {};
+          orders.forEach(function (order) {
+            if (order.status !== "paid") return;
+            order.items.forEach(function (item) {
+              licensedSeats[item.slug] = (licensedSeats[item.slug] || 0) + item.quantity;
+            });
+          });
+
+          var reservedSeats = {};
+          state.lines.forEach(function (line) {
+            reservedSeats[line.slug] = line.quantity;
+          });
+
+          var apps = G.list().items;
+          var licensedCount = apps.filter(function (app) {
+            return licensedSeats[app.slug];
+          }).length;
+          var reservedCount = apps.filter(function (app) {
+            return reservedSeats[app.slug];
+          }).length;
+
+          var appRows = apps
+            .map(function (app) {
+              var licensed = licensedSeats[app.slug];
+              var reserved = reservedSeats[app.slug];
+              var mode = licensed ? "licensed" : reserved ? "reserved" : "none";
+              var meta = licensed
+                ? licensed + " " + G.pluralize(licensed, "seat") + " licensed"
+                : reserved
+                  ? reserved + " " + G.pluralize(reserved, "seat") + " reserved"
+                  : G.formatPriceLabel(app.priceCents, app.currency) + " · " + app.platforms.join(" · ");
+              var label = licensed ? "Licensed" : reserved ? "Reserved" : "Not reserved";
+
+              return (
+                '<li><div class="app-row">' +
+                '<div class="app-row__thumb">' + G.glassObject(app.form, { label: app.name }) + "</div>" +
+                '<div class="app-row__body">' +
+                '<a class="app-row__name" href="product.html?slug=' + app.slug + '">' + G.escapeHtml(app.name) + "</a>" +
+                '<p class="app-row__meta">' + meta + "</p>" +
+                "</div>" +
+                '<span class="state' +
+                (mode === "licensed" ? " state--licensed" : mode === "reserved" ? " state--reserved" : "") +
+                '">' + label + "</span>" +
+                "</div></li>"
+              );
+            })
+            .join("");
+
+          var orderList = orders.length
+            ? '<ul class="orders__list">' +
+              orders
+                .map(function (order) {
+                  var statusLabel =
+                    order.status === "paid"
+                      ? "Paid"
+                      : order.status === "cancelled"
+                        ? "Cancelled"
+                        : "Awaiting payment";
+                  var statusClass = order.status === "paid" ? " badge--solid" : order.status === "cancelled" ? " badge--plain" : "";
+
+                  var items = order.items
+                    .map(function (item) {
+                      return (
+                        "<li><span>" + G.escapeHtml(item.name) +
+                        '<span style="margin-left:0.5rem">× ' + item.quantity + "</span></span>" +
+                        '<span class="tabular">' + G.formatPriceLabel(item.lineTotalCents, order.currency) + "</span></li>"
+                      );
+                    })
+                    .join("");
+
+                  return (
+                    '<li class="order glass glass-rim">' +
+                    '<div class="order__head">' +
+                    '<div class="order__head-left">' +
+                    "<span>" + G.formatOrderDate(order.createdAt) + "</span>" +
+                    '<span class="badge' + statusClass + '">' + statusLabel + "</span>" +
+                    '<span class="order__id">#' + order.id.slice(-6).toUpperCase() + "</span>" +
+                    "</div>" +
+                    '<span class="order__total">' + G.formatPrice(order.totalCents, order.currency) + "</span>" +
+                    "</div>" +
+                    '<ul class="order__items">' + items + "</ul>" +
+                    (order.company || order.note
+                      ? '<p class="order__foot">' +
+                        (order.company ? "<span>Licensed to " + G.escapeHtml(order.company) + "</span>" : "") +
+                        (order.note ? "<span>Note: " + G.escapeHtml(order.note) + "</span>" : "") +
+                        "</p>"
+                      : "") +
+                    "</li>"
+                  );
+                })
+                .join("") +
+              "</ul>"
+            : '<div class="card glass glass-rim centred" style="margin-top:1.5rem;padding:5rem 2rem">' +
+              '<div class="empty__icon" style="margin-inline:auto">' + G.icon("package", 20, 1.25) + "</div>" +
+              '<p style="margin-top:1.5rem;font-size:1rem">No orders yet</p>' +
+              '<p class="muted" style="max-width:24rem;margin:0.75rem auto 0;font-size:0.875rem;line-height:1.5rem">' +
+              "When you reserve a seat it will be listed here, along with its payment status and the apps it covers.</p>" +
+              '<a class="btn btn--primary" style="margin-top:1.75rem" href="catalog.html">Browse the suite</a>' +
+              "</div>";
+
+          host.innerHTML =
+            '<header class="account-head">' +
+            "<div>" +
+            '<p class="eyebrow">Your account</p>' +
+            '<h1 class="page-title">Welcome' + (account.name ? ", " + G.escapeHtml(account.name) : " back") + ".</h1>" +
+            (account.email ? '<p class="muted" style="margin-top:0.75rem;font-size:0.875rem">' + G.escapeHtml(account.email) + "</p>" : "") +
+            "</div>" +
+            '<div class="account-head__actions">' +
+            '<a class="btn btn--outline" href="catalog.html">Browse the suite' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg></a>' +
+            '<button type="button" class="btn btn--ghost" data-sign-out>' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>' +
+            "Sign out</button>" +
+            "</div>" +
+            "</header>" +
+
+            '<div class="account-grid">' +
+            '<section class="card glass glass-rim glass-sheen card-pad">' +
+            '<h2 class="panel__title">Profile</h2>' +
+            '<div class="profile">' +
+            '<span class="profile__avatar">' + initials() + "</span>" +
+            '<div style="min-width:0">' +
+            '<p class="profile__name">' + G.escapeHtml(account.name || "Guest session") + "</p>" +
+            '<p class="profile__email">' + G.escapeHtml(account.email || "No email on this account") + "</p>" +
+            "</div>" +
+            "</div>" +
+            '<form class="name-form" id="name-form">' +
+            '<label class="label" for="licenceName">Licence name</label>' +
+            '<div class="name-form__row">' +
+            '<input class="input" id="licenceName" placeholder="The name printed on your licence" autocomplete="name" value="' + G.escapeHtml(account.name || "") + '" />' +
+            '<button class="btn btn--primary" type="submit">Save</button>' +
+            "</div>" +
+            '<p class="name-form__hint">This is the name that appears on every licence and receipt.</p>' +
+            "</form>" +
+            '<p class="member-since">Member since ' + G.formatMemberSince(account.createdAt) + "</p>" +
+            "</section>" +
+
+            '<section class="card glass glass-rim glass-sheen card-pad">' +
+            '<div class="app-card__row">' +
+            '<h2 class="panel__title">Your apps</h2>' +
+            '<span class="result-count">' + licensedCount + " licensed · " + reservedCount + " reserved</span>" +
+            "</div>" +
+            '<ul class="apps">' + appRows + "</ul>" +
+            '<p class="panel-footnote">Seats you reserve are held in your cart. Licences issue here the moment checkout opens.</p>' +
+            "</section>" +
+            "</div>" +
+
+            '<section class="orders">' +
+            '<div class="orders__head">' +
+            '<h2 class="panel__title">Order history</h2>' +
+            (orders.length
+              ? '<span class="orders__count">' + orders.length + " " + G.pluralize(orders.length, "order") + "</span>"
+              : "") +
+            "</div>" +
+            orderList +
+            "</section>";
+
+          document.getElementById("name-form").addEventListener("submit", function (event) {
+            event.preventDefault();
+            var name = document.getElementById("licenceName").value.trim();
+            if (!name) return;
+            account = G.updateName(name);
+            G.toast("Your licence name is now " + name + ".");
+            render();
+          });
+        }
+
+        window.glassOnCartChange = render;
+        render();
+      })();
+    </script>
+  </body>
+</html>
